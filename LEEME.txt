@@ -1,0 +1,56 @@
+PIMBERT — DESLIZORA | SITIO MULTIPÁGINA CON BASE DE DATOS
+
+PARA USARLO
+Necesitás Python 3.8 o superior (https://www.python.org/downloads/). En Windows, al instalarlo
+tildá la opción "Add python.exe to PATH". No hay que instalar nada más.
+
+1. Extraé todo el ZIP en una carpeta. No muevas ni separes los archivos.
+2. Windows: doble clic en INICIAR_SERVIDOR.bat
+   Mac / Linux: abrí una terminal en la carpeta y ejecutá:  python3 servidor.py
+3. Se abre el navegador en http://localhost:8000 (el index). Para apagar el servidor: Ctrl + C.
+
+QUÉ HAY EN LA CARPETA
+- servidor.py ........... servidor web + conexión con la base de datos
+- base_de_datos.sql ..... estructura y contenido de la base (se usa si falta datos/pimbert.db)
+- datos/pimbert.db ...... la base de datos SQLite
+- datos/clave_admin.txt . clave del panel (se crea sola la primera vez que iniciás el servidor)
+- sitio/ ................ las 8 páginas HTML, los 2 videos MP4, consulta.js y admin.html
+
+CÓMO SE CONECTA TODO CON LA BASE DE DATOS
+Las 8 páginas están enlazadas con el index (logo, menú, pie y tarjetas "Explorá Deslizora").
+Esos enlaces y el contenido de cada página salen de estas tablas:
+- paginas ............... menú superior, pie de página y tarjetas del index, en TODAS las páginas.
+                          Si agregás una fila, aparece en todos lados.
+- caracteristicas, puntos_resumen ... página "El producto"
+- pasos ................. página "Cómo funciona"
+- materiales ............ página "Materiales" (grupo: prototipo / fabricacion)
+- ambitos_uso ........... página "Ámbitos de uso"
+- preguntas_frecuentes .. página "Preguntas frecuentes"
+- tipos_espacio ......... opciones de "¿Dónde usarías Deslizora?" del formulario
+- consultas ............. lo que la gente envía por el formulario (se guarda sola)
+
+PANEL DE CONSULTAS
+Entrá a http://localhost:8000/admin. La clave aparece en la consola al iniciar el servidor y
+también está en datos/clave_admin.txt. Desde ahí podés ver las consultas, marcarlas como
+atendidas o eliminarlas.
+
+PARA EDITAR EL CONTENIDO
+Abrí datos/pimbert.db con DB Browser for SQLite (gratis, https://sqlitebrowser.org), cambiá lo
+que quieras, tocá "Escribir cambios" y recargá la página. Para volver al contenido original,
+borrá datos/pimbert.db y reiniciá el servidor: se vuelve a crear desde base_de_datos.sql.
+
+SI ABRÍS LOS HTML CON DOBLE CLIC (SIN SERVIDOR)
+Se ven y se navegan todas las páginas, pero no hay base de datos: el contenido es el de
+respaldo y el formulario solo copia el mensaje al portapapeles, como antes.
+
+CAMBIOS RESPECTO DE LA VERSIÓN ANTERIOR
+- El formulario ahora guarda la consulta en la base. Se agregó el campo "Email o teléfono de
+  contacto" (obligatorio, igual que el nombre) para poder responder.
+- Se corrigieron los 3 DOCTYPE repetidos al comienzo de cada HTML.
+- El diseño, los textos y los videos no cambiaron. Los videos se reproducen solos, en silencio
+  y en bucle (algunos navegadores solo permiten autoplay sin sonido).
+
+PARA PUBLICARLO EN INTERNET
+El servidor es simple y pensado para uso local o de muestra. Si lo publicás, usalo detrás de un
+servicio con HTTPS (sin HTTPS la clave del panel viaja sin cifrar). Podés cambiar el puerto con
+la variable PORT, la dirección con HOST (por ejemplo 0.0.0.0) y la clave con PIMBERT_ADMIN_CLAVE.

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="noindex" name="robots"/>
+<title>Panel de consultas | Pimbert Innovación</title>
+<style>
+  :root { --brown:#542720; --soft:#71483f; --gold:#ffbd59; --cream:#ffdda6; --paper:#fffdf9; --line:#efe5d9; --muted:#766963; --red:#ff1c26; }
+  * { box-sizing: border-box; }
+  body { margin:0; color:var(--brown); background:var(--paper); font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; line-height:1.5; }
+  header { background:var(--brown); color:#fff; }
+  .bar { width:min(1180px, calc(100% - 32px)); margin:0 auto; min-height:64px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .bar strong { font-size:1.05rem; }
+  .bar nav { display:flex; align-items:center; gap:14px; font-size:.9rem; }
+  a { color:inherit; }
+  main { width:min(1180px, calc(100% - 32px)); margin:32px auto 60px; }
+  h1 { margin:0 0 6px; font-size:1.7rem; letter-spacing:-.02em; }
+  .muted { color:var(--muted); font-size:.92rem; }
+  button { font:inherit; cursor:pointer; border:0; border-radius:999px; padding:9px 16px; font-weight:700; font-size:.88rem; background:var(--brown); color:#fff; }
+  button.claro { background:#fff; color:var(--brown); border:1px solid var(--line); }
+  button.peligro { background:#fff; color:#b3141c; border:1px solid #f0c5c7; }
+  button:disabled { opacity:.6; cursor:default; }
+  .tarjeta { max-width:420px; margin:50px auto; padding:28px; background:#fff; border:1px solid var(--line); border-radius:22px; box-shadow:0 12px 32px rgba(84,39,32,.07); }
+  .tarjeta label { display:block; font-weight:700; font-size:.85rem; margin-bottom:6px; }
+  .tarjeta input { width:100%; padding:11px 12px; border:1px solid #e9ded2; border-radius:11px; font:inherit; margin-bottom:14px; }
+  .error { color:#b3141c; min-height:22px; font-size:.88rem; margin:10px 0 0; }
+  .resumen { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin:22px 0 14px; }
+  .tabla { overflow-x:auto; border:1px solid var(--line); border-radius:18px; background:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  th, td { padding:11px 12px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); }
+  th { background:#fff7eb; font-size:.76rem; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; }
+  tr:last-child td { border-bottom:0; }
+  td.detalles { min-width:200px; max-width:340px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  td.contacto, td.nombre { overflow-wrap:anywhere; }
+  .acciones { display:flex; flex-wrap:wrap; gap:6px; }
+  .insignia { display:inline-block; padding:3px 10px; border-radius:999px; font-size:.75rem; font-weight:800; }
+  .nueva { background:#ffe4e1; color:#a31219; }
+  .atendida { background:#e3f4e1; color:#23642a; }
+  .vacio { padding:34px; text-align:center; color:var(--muted); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <strong>Pimbert · Panel de consultas</strong>
+    <nav><a href="index.html">Ver el sitio</a><button class="claro" id="salir" hidden>Salir</button></nav>
+  </div>
+</header>
+<main>
+  <section class="tarjeta" id="vistaLogin">
+    <h1>Ingresar</h1>
+    <p class="muted">Escribí la clave del panel. La encontrás en la consola donde iniciaste el servidor, o en <code>datos/clave_admin.txt</code>.</p>
+    <form id="formLogin">
+      <label for="clave">Clave</label>
+      <input id="clave" type="password" autocomplete="current-password" required/>
+      <button type="submit">Entrar</button>
+      <p class="error" id="errorLogin" role="alert"></p>
+    </form>
+  </section>
+
+  <section id="vistaLista" hidden>
+    <h1>Consultas recibidas</h1>
+    <div class="resumen">
+      <span class="muted" id="resumen"></span>
+      <button class="claro" id="actualizar">Actualizar</button>
+    </div>
+    <p class="error" id="errorLista" role="alert"></p>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>N.º</th><th>Fecha</th><th>Nombre</th><th>Contacto</th><th>Lugar</th><th>Espacio</th><th>Pizarra (ancho × alto)</th><th>Detalles</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="filas"></tbody>
+      </table>
+      <div class="vacio" id="vacio" hidden>Todavía no hay consultas. Cuando alguien complete el formulario de <a href="consulta.html">consulta.html</a>, va a aparecer acá.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  let clave = '';
+  try { clave = sessionStorage.getItem('pimbert_clave') || ''; } catch (_) {}
+
+  async function api(ruta, opciones = {}) {
+    const r = await fetch(ruta, { ...opciones, headers: { 'Authorization': 'Bearer ' + clave, 'Content-Type': 'application/json' } });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { const err = new Error(j.error || 'Error inesperado'); err.status = r.status; throw err; }
+    return j;
+  }
+
+  function celda(fila, texto, clase) {  // siempre textContent: los datos vienen de visitantes del sitio
+    const td = document.createElement('td');
+    if (clase) td.className = clase;
+    td.textContent = texto || '—';
+    fila.appendChild(td);
+    return td;
+  }
+
+  function boton(texto, clase, onclick) {
+    const b = document.createElement('button');
+    b.textContent = texto; b.className = clase; b.addEventListener('click', onclick);
+    return b;
+  }
+
+  function mostrar(consultas) {
+    const cuerpo = $('#filas');
+    cuerpo.textContent = '';
+    const nuevas = consultas.filter((c) => c.estado === 'nueva').length;
+    $('#resumen').textContent = `${consultas.length} consulta${consultas.length === 1 ? '' : 's'} · ${nuevas} sin atender`;
+    $('#vacio').hidden = consultas.length > 0;
+    for (const c of consultas) {
+      const tr = document.createElement('tr');
+      celda(tr, '#' + c.id);
+      celda(tr, new Date(c.creada_en.replace(' ', 'T') + 'Z').toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }));
+      celda(tr, c.nombre, 'nombre');
+      celda(tr, c.contacto, 'contacto');
+      celda(tr, c.institucion);
+      celda(tr, c.espacio);
+      celda(tr, c.ancho || c.alto ? `${c.ancho || '?'} × ${c.alto || '?'}` : '');
+      celda(tr, c.detalles, 'detalles');
+      const tdEstado = document.createElement('td');
+      const ins = document.createElement('span');
+      ins.className = 'insignia ' + c.estado;
+      ins.textContent = c.estado === 'nueva' ? 'Nueva' : 'Atendida';
+      tdEstado.appendChild(ins);
+      tr.appendChild(tdEstado);
+      const tdAcciones = document.createElement('td');
+      const caja = document.createElement('div');
+      caja.className = 'acciones';
+      caja.appendChild(boton(c.estado === 'nueva' ? 'Marcar atendida' : 'Reabrir', 'claro', async () => {
+        await accion(`/api/admin/consultas/${c.id}`, { method: 'PATCH', body: JSON.stringify({ estado: c.estado === 'nueva' ? 'atendida' : 'nueva' }) });
+      }));
+      caja.appendChild(boton('Eliminar', 'peligro', async () => {
+        if (confirm(`¿Eliminar la consulta N.º ${c.id} de ${c.nombre}? No se puede deshacer.`)) {
+          await accion(`/api/admin/consultas/${c.id}`, { method: 'DELETE' });
+        }
+      }));
+      tdAcciones.appendChild(caja);
+      tr.appendChild(tdAcciones);
+      cuerpo.appendChild(tr);
+    }
+  }
+
+  async function accion(ruta, opciones) {
+    try { await api(ruta, opciones); await cargar(); } catch (err) { $('#errorLista').textContent = err.message; }
+  }
+
+  async function cargar() {
+    $('#errorLista').textContent = '';
+    try {
+      const { consultas } = await api('/api/admin/consultas');
+      $('#vistaLogin').hidden = true; $('#vistaLista').hidden = false; $('#salir').hidden = false;
+      try { sessionStorage.setItem('pimbert_clave', clave); } catch (_) {}
+      mostrar(consultas);
+      return true;
+    } catch (err) {
+      if (err.status === 401 || err.status === 429) { clave = ''; try { sessionStorage.removeItem('pimbert_clave'); } catch (_) {} }
+      $('#errorLogin').textContent = err instanceof TypeError ? 'No se pudo conectar. Abrí el panel desde el servidor: http://localhost:8000/admin' : err.message;
+      $('#vistaLogin').hidden = false; $('#vistaLista').hidden = true; $('#salir').hidden = true;
+      return false;
+    }
+  }
+
+  $('#formLogin').addEventListener('submit', (ev) => { ev.preventDefault(); clave = $('#clave').value; $('#clave').value = ''; cargar(); });
+  $('#actualizar').addEventListener('click', cargar);
+  $('#salir').addEventListener('click', () => { clave = ''; try { sessionStorage.removeItem('pimbert_clave'); } catch (_) {} $('#errorLogin').textContent = ''; $('#vistaLogin').hidden = false; $('#vistaLista').hidden = true; $('#salir').hidden = true; });
+  if (clave) cargar();
+})();
+</script>
+</body>
+</html>
